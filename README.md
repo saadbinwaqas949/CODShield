@@ -173,8 +173,5 @@ WhatsApp, real courier tracking, a fraud graph that links phones and addresses a
 | `migrations/`, `migrate.py` | Database changes and the runner |
 | `tests/` | Offline tests |
 
-## License
 
-MIT. See `LICENSE`.
 
-Built by [team names].
