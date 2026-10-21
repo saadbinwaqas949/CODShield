@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>CODShield Staff Inbox</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#f0f3f5;color:#18212b;font:15px/1.45 system-ui,sans-serif}
+    header{padding:14px 18px;background:#075e54;color:white}header h1{margin:0;font-size:1.1rem}
+    main{max-width:1050px;margin:18px auto;padding:0 12px;display:grid;gap:14px}
+    section{background:white;border:1px solid #d7dfe3;border-radius:12px;padding:14px}
+    input,textarea,button,select{font:inherit;padding:9px;border:1px solid #bdc8cd;border-radius:8px}
+    button{cursor:pointer;background:#087e70;color:white;border:0;font-weight:650}
+    .row{display:flex;gap:8px;flex-wrap:wrap}.row input{flex:1;min-width:170px}
+    #layout{display:grid;grid-template-columns:290px 1fr;gap:14px}#inbox{display:grid;gap:7px;align-content:start}
+    .item{background:#f5f8f8;color:#18212b;text-align:left;border:1px solid #d7dfe3}
+    #thread{height:300px;overflow:auto;background:#f5f8f8;padding:10px;border-radius:8px;display:flex;flex-direction:column;gap:7px}
+    .bubble{max-width:85%;padding:8px 10px;border-radius:10px;white-space:pre-wrap;overflow-wrap:anywhere}
+    .in{align-self:flex-end;background:#d9fdd3}.out{align-self:flex-start;background:white;border:1px solid #ddd}
+    textarea{width:100%;min-height:75px;margin:8px 0}.product{border-top:1px solid #e2e8ea;padding:10px 0;display:grid;gap:8px}
+    .product textarea{margin:0}.status{color:#52616a;font-size:.9rem}
+    .cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}.card{background:#f5f8f8;padding:12px;border-radius:9px}.card strong{display:block;font-size:1.3rem}
+    .cockpit-list{max-height:300px;overflow:auto;padding-left:20px}.cockpit-list li{margin:7px 0;overflow-wrap:anywhere}
+    @media(max-width:700px){#layout{grid-template-columns:1fr}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}#inbox{max-height:210px;overflow:auto}}
+  </style>
+</head>
+<body>
+<header><h1>CODShield · Staff handoff</h1></header>
+<main>
+  <section id="signin"><strong>Staff sign-in</strong><p>Enter the STAFF_ACCESS_TOKEN configured by the shop owner.</p>
+    <div class="row"><input id="token" type="password" autocomplete="current-password" placeholder="Staff access token"><button id="login">Sign in</button></div><p class="status" id="login-status"></p>
+  </section>
+  <div id="workspace" hidden>
+    <section><h2>Shop overview</h2><div id="cockpit-metrics" class="cards"></div><p id="briefing" class="status"></p>
+      <div class="row"><div style="flex:1;min-width:240px"><h3>Recent orders · AI usage</h3><ul id="cockpit-orders" class="cockpit-list"></ul></div>
+      <div style="flex:1;min-width:240px"><h3>Live event timeline</h3><ul id="cockpit-events" class="cockpit-list"></ul></div></div>
+      <p class="status">Delivered value is recorded sales, not estimated savings. AI costs are estimates using configured Gemini rates and only include agent runs linked to an order.</p>
+    </section>
+    <div id="layout">
+      <section><h2>Needs staff</h2><div id="inbox"></div><p class="status" id="inbox-status"></p></section>
+      <section><h2 id="thread-title">Choose a conversation</h2><p id="reason" class="status"></p><div id="thread"></div>
+        <form id="reply-form"><textarea id="reply" maxlength="500" placeholder="Staff reply" required></textarea><div class="row"><button type="submit">Send reply</button><button type="button" id="takeover">Take over</button><button type="button" id="resume">Return to AI</button></div></form>
+      </section>
+    </div>
+    <section><h2>Product catalog & inventory</h2><p class="status">Add a product or update its price, stock, description, sizes and pictures here. For accurate listings, use a photo of the actual item. <a href="https://www.pexels.com/search/product%20photography/" target="_blank" rel="noopener">Find free Pexels stock photos</a> · <a href="https://unsplash.com/s/photos/product-photography" target="_blank" rel="noopener">Find free Unsplash photos</a></p>
+      <div class="row"><select id="products"></select><button id="save-product">Save product details</button></div>
+      <div id="new-product-fields" hidden>
+        <div class="row"><label>Product name<input id="new-name" maxlength="200"></label><label>Urdu name (optional)<input id="new-name-ur" maxlength="200"></label><label>SKU (optional)<input id="new-sku" maxlength="100"></label></div>
+      </div>
+      <div class="row"><label>Price (Rs)<input id="price" type="number" min="0.01" step="0.01" required></label><label>Available stock<input id="stock" type="number" min="0" step="1" required></label></div>
+      <label>Description<textarea id="description" maxlength="3000"></textarea></label>
+      <label>Attributes (JSON, e.g. {"sizes":["S","M","L"],"colors":["blue"]})<textarea id="attributes"></textarea></label>
+      <label>Image URLs<textarea id="images" placeholder="https://... or uploaded images"></textarea></label>
+      <div class="row"><input id="image-files" type="file" accept="image/jpeg,image/png,image/webp" multiple><button id="upload-images" type="button">Upload selected pictures</button></div>
+      <div id="image-preview" class="row"></div><p id="product-status" class="status"></p>
+    </section>
+  </div>
+</main>
+<script>
+  const tokenInput=document.querySelector("#token"), loginStatus=document.querySelector("#login-status");
+  let token=sessionStorage.getItem("codshieldStaffToken")||"", selected=null, products=[];
+  // Attach the staff token to every protected API request.
+  const headers=()=>({"X-Staff-Token":token,"Content-Type":"application/json"});
+  async function api(path,options={}){const response=await fetch(path,{...options,headers:headers()});if(!response.ok){let detail="Request failed";try{detail=(await response.json()).detail||detail}catch(_){}throw new Error(detail)}return response.json()}
+  function bubble(text,direction){const node=document.createElement("div");node.className="bubble "+direction;node.dir="auto";node.textContent=text;document.querySelector("#thread").appendChild(node)}
+  // Refresh seller-scoped totals, order details, risk explanations, AI usage, and event status.
+  async function loadCockpit(){try{const data=await api("/api/staff/cockpit"),metrics=document.querySelector("#cockpit-metrics");metrics.replaceChildren();for(const [label,value] of [["Orders today",data.metrics.orders_today],["Open orders",data.metrics.open_orders],["Staff handoffs",data.metrics.staff_handoffs],["Delivered value today","Rs "+data.metrics.delivered_value_today]]){const card=document.createElement("div");card.className="card";const title=document.createElement("span");title.textContent=label;const amount=document.createElement("strong");amount.textContent=value;card.append(title,amount);metrics.appendChild(card)}document.querySelector("#briefing").textContent=data.briefing;const orders=document.querySelector("#cockpit-orders");orders.replaceChildren();for(const item of data.orders){const li=document.createElement("li"),parts=[item.customer,item.status,item.risk_level||"risk unscored",item.call_outcome&&("call: "+item.call_outcome),item.delivery_outcome&&("delivery: "+item.delivery_outcome)];if(item.tokens_in!=null||item.latency_ms!=null)parts.push("AI: "+(item.tokens_in||0)+" in / "+(item.tokens_out||0)+" out tokens, "+(item.latency_ms??"?")+" ms");parts.push(item.estimated_ai_cost_usd==null?(data.ai_cost_configured?"cost unavailable":"AI cost rate not configured"):("~$"+Number(item.estimated_ai_cost_usd).toFixed(6)));if(item.risk_reasons?.length)parts.push("risk: "+item.risk_reasons.join(", "));li.textContent=parts.filter(Boolean).join(" · ");orders.appendChild(li)}if(!data.orders.length)orders.textContent="No orders yet.";const events=document.querySelector("#cockpit-events");events.replaceChildren();for(const item of data.timeline){const li=document.createElement("li");li.textContent=[item.type,item.created_at?new Date(item.created_at).toLocaleString():"",item.processed?"processed":"waiting",item.failed?"failed":""].filter(Boolean).join(" · ");events.appendChild(li)}if(!data.timeline.length)events.textContent="No events yet."}catch(error){document.querySelector("#briefing").textContent="Shop overview unavailable: "+error.message}}
+  async function loadInbox(){try{const data=await api("/api/staff/conversations");const box=document.querySelector("#inbox");box.replaceChildren();for(const item of data.conversations){const button=document.createElement("button");button.className="item";button.textContent=item.customer+" · "+item.mode+" · "+item.reason;button.onclick=()=>selectConversation(item);box.appendChild(button)}document.querySelector("#inbox-status").textContent=data.conversations.length?"":"No conversations waiting for staff."}catch(error){document.querySelector("#inbox-status").textContent=error.message}}
+  async function selectConversation(item){selected=item;document.querySelector("#thread-title").textContent=item.customer+" · "+item.seller;document.querySelector("#reason").textContent="Reason: "+item.reason;await loadThread()}
+  async function loadThread(){if(!selected)return;try{const data=await api("/api/staff/conversations/"+selected.conversation_id+"/messages");const box=document.querySelector("#thread");box.replaceChildren();for(const message of data.messages)bubble(message.body,message.direction==="in"?"in":"out");box.scrollTop=box.scrollHeight}catch(error){document.querySelector("#inbox-status").textContent=error.message}}
+  async function loadProducts(){const data=await api("/api/staff/products");products=data.products;const select=document.querySelector("#products");select.replaceChildren();for(const p of products){const option=document.createElement("option");option.value=p.id;option.textContent=p.name+" / "+(p.name_ur||"");select.appendChild(option)}const add=document.createElement("option");add.value="__new__";add.textContent="＋ Add a new product";select.appendChild(add);select.value=products.length?products[0].id:"__new__";showProduct()}
+  function renderImages(){const box=document.querySelector("#image-preview");box.replaceChildren();for(const url of document.querySelector("#images").value.split("\n").map(x=>x.trim()).filter(Boolean)){const img=document.createElement("img");img.src=url;img.alt="Product preview";img.loading="lazy";img.style="width:72px;height:72px;object-fit:cover;border-radius:8px";box.appendChild(img)}}
+  function showProduct(){const isNew=document.querySelector("#products").value==="__new__";document.querySelector("#new-product-fields").hidden=!isNew;document.querySelector("#save-product").textContent=isNew?"Add product":"Save product details";const p=products.find(item=>item.id===document.querySelector("#products").value);document.querySelector("#price").value=p?p.price:"";document.querySelector("#stock").value=p?p.stock:0;document.querySelector("#description").value=p?p.description:"";document.querySelector("#attributes").value=JSON.stringify(p?p.attributes:{},null,2);document.querySelector("#images").value=p?(p.image_urls||[]).join("\n"):"";document.querySelector("#new-name").value="";document.querySelector("#new-name-ur").value="";document.querySelector("#new-sku").value="";renderImages()}
+  // Validate the token before showing staff data, then refresh each workspace panel.
+  async function start(){token=tokenInput.value.trim()||sessionStorage.getItem("codshieldStaffToken")||"";try{await api("/api/staff/conversations");sessionStorage.setItem("codshieldStaffToken",token);document.querySelector("#signin").hidden=true;document.querySelector("#workspace").hidden=false;await loadInbox();await loadProducts();await loadCockpit();setInterval(loadInbox,2000);setInterval(loadThread,2000);setInterval(loadCockpit,10000)}catch(error){if(error.message==="Staff sign-in required"||error.message==="Staff access is not configured"){sessionStorage.removeItem("codshieldStaffToken");token="";tokenInput.value=""}loginStatus.textContent=error.message}}
+  document.querySelector("#login").onclick=start;tokenInput.value=token;
+  document.querySelector("#products").onchange=showProduct;
+  document.querySelector("#images").oninput=renderImages;
+  document.querySelector("#upload-images").onclick=async()=>{const files=[...document.querySelector("#image-files").files];if(!files.length){document.querySelector("#product-status").textContent="Choose one or more pictures first.";return}try{const area=document.querySelector("#images"),current=area.value.split("\n").map(x=>x.trim()).filter(Boolean);if(current.length+files.length>8)throw new Error("A product can have up to 8 pictures.");for(const file of files){if(file.size>5*1024*1024)throw new Error(file.name+" is over 5 MB.");const response=await fetch("/api/staff/products/upload-image",{method:"POST",headers:{"X-Staff-Token":token,"Content-Type":file.type},body:file});if(!response.ok){const data=await response.json();throw new Error(data.detail||"Upload failed")}const data=await response.json();area.value+=(area.value?"\n":"")+data.url}document.querySelector("#image-files").value="";renderImages();document.querySelector("#product-status").textContent="Picture uploaded. Save the product to keep it in the catalog."}catch(error){document.querySelector("#product-status").textContent=error.message}};
+  document.querySelector("#reply-form").onsubmit=async event=>{event.preventDefault();if(!selected)return;try{await api("/api/staff/conversations/"+selected.conversation_id+"/reply",{method:"POST",body:JSON.stringify({text:document.querySelector("#reply").value})});document.querySelector("#reply").value="";await loadThread()}catch(error){document.querySelector("#inbox-status").textContent=error.message}};
+  document.querySelector("#takeover").onclick=async()=>{if(!selected)return;await api("/api/staff/conversations/"+selected.conversation_id+"/takeover",{method:"POST"});document.querySelector("#inbox-status").textContent="Takeover queued; wait for worker."};
+  document.querySelector("#resume").onclick=async()=>{if(!selected)return;await api("/api/staff/conversations/"+selected.conversation_id+"/resume",{method:"POST"});document.querySelector("#inbox-status").textContent="Return to AI queued; wait for worker."};
+  document.querySelector("#save-product").onclick=async()=>{const isNew=document.querySelector("#products").value==="__new__",p=products.find(item=>item.id===document.querySelector("#products").value);if(!isNew&&!p)return;try{const attributes=JSON.parse(document.querySelector("#attributes").value||"{}");if(!attributes||Array.isArray(attributes)||typeof attributes!=="object")throw new Error("Attributes must be a JSON object.");const image_urls=document.querySelector("#images").value.split("\n").map(x=>x.trim()).filter(Boolean),details={price:document.querySelector("#price").value,stock:Number(document.querySelector("#stock").value),description:document.querySelector("#description").value,attributes,image_urls};if(isNew){details.name=document.querySelector("#new-name").value.trim();details.name_ur=document.querySelector("#new-name-ur").value.trim()||null;details.sku=document.querySelector("#new-sku").value.trim()||null;if(!details.name)throw new Error("Enter a product name.")}const result=await api(isNew?"/api/staff/products":"/api/staff/products/"+p.id,{method:isNew?"POST":"PUT",body:JSON.stringify(details)});document.querySelector("#product-status").textContent="Saved.";await loadProducts();if(isNew){document.querySelector("#products").value=result.id;showProduct()}}catch(error){document.querySelector("#product-status").textContent=error.message}};
+  if(token)start();
+</script>
+</body>
+</html>

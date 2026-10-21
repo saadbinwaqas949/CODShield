@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>CODShield Demo Chat</title>
+  <style>
+    :root { color-scheme: light; font: 16px/1.45 system-ui, sans-serif; color: #18212b; background: #eef2f4; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 12px; }
+    main { width: min(100%, 620px); height: min(850px, 96vh); min-height: 480px; display: flex; flex-direction: column; background: white; border: 1px solid #d7dfe3; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 30px #17212b14; }
+    header { padding: 14px 18px; color: white; background: #075e54; display: flex; align-items: center; justify-content: space-between; }
+    header h1 { margin: 0; font-size: 1.05rem; }
+    .demo { font-size: .72rem; font-weight: 700; letter-spacing: .08em; background: #fff3; border: 1px solid #fff7; border-radius: 999px; padding: 3px 9px; }
+    #start { padding: 18px; display: grid; gap: 10px; }
+    label { display: grid; gap: 4px; font-size: .9rem; }
+    input, button { font: inherit; border-radius: 9px; padding: 11px 12px; }
+    input { min-width: 0; border: 1px solid #b8c4ca; }
+    button { border: 0; color: white; background: #087e70; cursor: pointer; font-weight: 650; }
+    button:disabled { opacity: .55; cursor: wait; }
+    #messages { flex: 1; overflow-y: auto; padding: 16px 12px; display: flex; flex-direction: column; gap: 8px; background: #f5f8f8; }
+    .bubble { max-width: 86%; padding: 9px 12px; border-radius: 13px; overflow-wrap: anywhere; white-space: pre-wrap; }
+    .in { align-self: flex-end; background: #d9fdd3; border-bottom-right-radius: 3px; }
+    .out { align-self: flex-start; background: white; border: 1px solid #e1e7e8; border-bottom-left-radius: 3px; }
+    .notice { align-self: center; color: #59656d; font-size: .88rem; background: #fff; }
+    #typing { display: none; padding: 3px 14px 9px; color: #59656d; font-size: .86rem; }
+    #support-status { display:none; padding:4px 14px 8px; color:#075e54; font-size:.86rem; }
+    #send { display: none; gap: 8px; padding: 10px; border-top: 1px solid #e2e8ea; }
+    #text { flex: 1; }
+    #debug { display: none; padding: 8px 12px; border-top: 1px solid #e2e8ea; color: #39464d; font: .8rem/1.4 ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+    @media (max-width: 520px) { body { padding: 0; } main { width: 100%; height: 100vh; min-height: 0; border: 0; border-radius: 0; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header><h1>CODShield Shop</h1><span class="demo">DEMO</span></header>
+    <form id="start">
+      <label>Phone number <input id="phone" name="phone" required autocomplete="tel" maxlength="64" placeholder="03001234567"></label>
+      <label>Name (optional) <input id="name" name="name" autocomplete="name" maxlength="200"></label>
+      <button type="submit">Start chat</button>
+      <div id="start-error" class="bubble notice" role="status"></div>
+    </form>
+    <section id="messages" aria-live="polite" aria-label="Chat messages" style="display:none"></section>
+    <div id="typing" aria-live="polite">Shop is typing...</div>
+    <div id="support-status" aria-live="polite"></div>
+    <form id="send">
+      <input id="text" name="text" required maxlength="500" autocomplete="off" aria-label="Message" placeholder="Type a message">
+      <button id="send-button" type="submit">Send</button>
+    </form>
+    <aside id="debug" aria-live="polite"></aside>
+  </main>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const debugEnabled = params.get("debug") === "1";
+    const startForm = document.querySelector("#start");
+    const sendForm = document.querySelector("#send");
+    const messageBox = document.querySelector("#messages");
+    const typing = document.querySelector("#typing");
+    const supportStatus = document.querySelector("#support-status");
+    const debugPanel = document.querySelector("#debug");
+    const startError = document.querySelector("#start-error");
+    const sendButton = document.querySelector("#send-button");
+    let conversationId = sessionStorage.getItem("codshieldConversation");
+    let afterId = null;
+    let pending = false;
+    let polling = false;
+    let replyTimer = null;
+
+    if (debugEnabled) debugPanel.style.display = "block";
+
+    // Switch from contact capture to the existing conversation view.
+    function showChat() {
+      startForm.style.display = "none";
+      messageBox.style.display = "flex";
+      sendForm.style.display = "flex";
+      pollMessages();
+    }
+
+    // Render server text with textContent so customer content is never parsed as HTML.
+    function addBubble(text, direction) {
+      const bubble = document.createElement("div");
+      bubble.className = "bubble " + direction;
+      bubble.dir = "auto";
+      bubble.textContent = text;
+      messageBox.appendChild(bubble);
+      messageBox.scrollTop = messageBox.scrollHeight;
+      return bubble;
+    }
+
+    function addNotice(text) { addBubble(text, "notice"); }
+
+    async function apiError(response) {
+      try {
+        const body = await response.json();
+        return body.detail || "Request failed. Please try again.";
+      } catch (_) { return "Request failed. Please try again."; }
+    }
+
+    startForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      startError.textContent = "";
+      const button = startForm.querySelector("button");
+      button.disabled = true;
+      try {
+        const response = await fetch("/api/chat/start", {
+          method: "POST", headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({phone: document.querySelector("#phone").value,
+            name: document.querySelector("#name").value || null})
+        });
+        if (!response.ok) throw new Error(await apiError(response));
+        const body = await response.json();
+        conversationId = body.conversation_id;
+        sessionStorage.setItem("codshieldConversation", conversationId);
+        showChat();
+      } catch (error) { startError.textContent = error.message; }
+      finally { button.disabled = false; }
+    });
+
+    // Fetch only messages after the last seen ID and avoid overlapping poll requests.
+    async function pollMessages() {
+      if (!conversationId || polling) return;
+      polling = true;
+      try {
+        const query = new URLSearchParams({conversation_id: conversationId});
+        if (afterId) query.set("after", afterId);
+        if (debugEnabled) query.set("debug", "1");
+        const response = await fetch("/api/chat/messages?" + query.toString());
+        if (!response.ok) throw new Error(await apiError(response));
+        const data = await response.json();
+        for (const message of data.messages) {
+          const bubble = addBubble(message.body, message.direction === "in" ? "in" : "out");
+          // Display only secure remote images or filenames from the app's upload route.
+          for (const url of (message.media_urls || [])) {
+            if (typeof url !== "string" ||
+                (!url.startsWith("https://") && !/^\/product-images\/[a-f0-9]{32}\.(?:jpg|png|webp)$/.test(url))) continue;
+            const image = document.createElement("img");
+            image.src = url;
+            image.alt = "Product photo";
+            image.loading = "lazy";
+            image.referrerPolicy = "no-referrer";
+            image.style.cssText = "display:block;max-width:220px;max-height:260px;margin-top:8px;border-radius:8px";
+            bubble.appendChild(image);
+          }
+          afterId = message.id;
+          if (pending && message.direction === "out") {
+            pending = false;
+            typing.style.display = "none";
+            sendButton.disabled = false;
+            clearTimeout(replyTimer);
+          }
+        }
+        // Keep customers informed while staff review a handoff or actively reply.
+        supportStatus.style.display = data.handoff_mode === "pending" || data.handoff_mode === "human" ? "block" : "none";
+        supportStatus.textContent = data.handoff_mode === "pending"
+          ? "Your question is in the shop's staff inbox. I can still help with other product questions."
+          : data.handoff_mode === "human" ? "A shop employee is handling this chat." : "";
+        if (debugEnabled) debugPanel.textContent = data.order
+          ? JSON.stringify(data.order, null, 2) : "No order yet";
+      } catch (error) {
+        if (error.message) addNotice(error.message);
+      } finally { polling = false; }
+    }
+
+    sendForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const input = document.querySelector("#text");
+      const text = input.value.trim();
+      if (!text || text.length > 500 || pending) return;
+      sendButton.disabled = true;
+      try {
+        const response = await fetch("/api/chat/send", {
+          method: "POST", headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({conversation_id: conversationId, text})
+        });
+        if (!response.ok) throw new Error(await apiError(response));
+        input.value = "";
+        // Lock out duplicate submits until a reply arrives or the wait timer expires.
+        pending = true;
+        typing.style.display = "block";
+        replyTimer = setTimeout(() => {
+          pending = false;
+          typing.style.display = "none";
+          sendButton.disabled = false;
+          addNotice("The reply is delayed. Keep this chat open; if needed, send a follow-up instead of repeating the same message.");
+        }, 60000);
+        pollMessages();
+      } catch (error) {
+        sendButton.disabled = false;
+        addNotice(error.message);
+      }
+    });
+
+    if (conversationId) showChat();
+    setInterval(pollMessages, 1000);
+  </script>
+</body>
+</html>

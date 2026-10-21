@@ -1,0 +1,8 @@
+psycopg2-binary
+python-dotenv
+openai
+pydantic
+streamlit
+fastapi
+httpx
+cryptography

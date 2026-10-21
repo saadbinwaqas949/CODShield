@@ -1,0 +1,69 @@
+city,area,ZoneOrTehsil,Type,aliases
+Lahore,Gulberg,Gulberg Zone,Commercial & Residential,Gulberg|Gulbar|Gulberg III|گلبرگ
+Lahore,Gulberg III,Gulberg Zone,Commercial & Residential,Gulberg III
+Lahore,Model Town,Model Town Tehsil,Residential,Model Town|ماڈل ٹاؤن
+Lahore,Garden Town,Model Town Tehsil,Residential,Garden Town
+Lahore,Faisal Town,Model Town Tehsil,Residential,Faisal Town
+Lahore,Johar Town,Allama Iqbal Zone,Residential & Commercial,Johar Town|Johar|جوہر ٹاؤن
+Lahore,WAPDA Town,Allama Iqbal Zone,Residential,Wapda Town|WAPDA Town
+Lahore,Allama Iqbal Town,Allama Iqbal Zone,Residential,Allama Iqbal Town|Iqbal Town
+Lahore,Sabzazar,Allama Iqbal Zone,Residential,Sabzazar
+Lahore,Thokar Niaz Baig,Allama Iqbal Zone,Transport & Residential,Thokar Niaz Baig
+Lahore,Mustafa Town,Allama Iqbal Zone,Residential,Mustafa Town
+Lahore,Muslim Town,Data Ganj Bakhsh Zone,Residential,Muslim Town
+Lahore,Shadman,Data Ganj Bakhsh Zone,Residential & Commercial,Shadman
+Lahore,Ichhra,Samanabad Zone,Commercial & Residential,Ichhra
+Lahore,Samanabad,Samanabad Zone,Residential,Samanabad
+Lahore,Gulshan-e-Ravi,Samanabad Zone,Residential,Gulshan-e-Ravi
+Lahore,Mozang,Data Ganj Bakhsh Zone,Residential & Commercial,Mozang
+Lahore,Anarkali,Data Ganj Bakhsh Zone,Historical & Commercial,Anarkali
+Lahore,Walled City of Lahore,Data Ganj Bakhsh Zone,Historical Core,Walled City of Lahore
+Lahore,Bhati Gate,Data Ganj Bakhsh Zone,Historical,Bhati Gate
+Lahore,Delhi Gate,Data Ganj Bakhsh Zone,Historical,Delhi Gate
+Lahore,Mochi Gate,Data Ganj Bakhsh Zone,Historical,Mochi Gate
+Lahore,Shahalmi Gate,Data Ganj Bakhsh Zone,Commercial,Shahalmi Gate
+Lahore,Lahore Cantt,Lahore Cantonment,Military & Residential,Cantt|Cantonment|Lahore Cantt
+Lahore,DHA Lahore,Lahore Cantonment,Posh Residential,DHA|D.H.A.|Defence|Defense Housing Authority|ڈی ایچ اے
+Lahore,Cavalry Ground,Lahore Cantonment,Commercial & Residential,Cavalry Ground
+Lahore,Askari X,Lahore Cantonment,Residential,Askari X
+Lahore,Walton Cantt,Lahore Cantonment,Residential & Commercial,Walton Cantt
+Lahore,Paragon City,Lahore Cantonment,Residential,Paragon City
+Lahore,Baghbanpura,Shalimar Zone,Historical & Residential,Baghbanpura
+Lahore,Mughalpura,Aziz Bhatti Zone,Residential,Mughalpura
+Lahore,Harbanspura,Aziz Bhatti Zone,Residential,Harbanspura
+Lahore,Shahdara,Ravi Zone,Residential & Industrial,Shahdara
+Lahore,Begum Kot,Ravi Zone,Residential,Begum Kot
+Lahore,Kot Lakhpat,Nishtar Town,Industrial & Residential,Kot Lakhpat
+Lahore,Green Town,Nishtar Town,Residential,Green Town
+Lahore,Township,Nishtar Town,Residential,Township
+Lahore,Valencia Town,Nishtar Town,Residential,Valencia Town
+Lahore,Youhanabad,Nishtar Town,Residential,Youhanabad
+Lahore,Gajju Matta,Nishtar Town,Suburban,Gajju Matta
+Lahore,Kahna Nau,Nishtar Town,Suburban,Kahna Nau
+Lahore,Raiwind,Raiwind Tehsil,Suburban,Raiwind
+Lahore,Barki,Wagha Zone,Rural & Farmhouse,Barki
+Lahore,Daroghawala,Wagha Zone,Commercial & Residential,Daroghawala
+Lahore,Bahria Town,Bahria Town Zone,Residential,Bahria Town|بحریہ ٹاؤن
+Karachi,DHA,DHA Zone,Posh Residential,DHA|D.H.A.|Defence|Defense Housing Authority|ڈی ایچ اے
+Karachi,Clifton,Clifton Zone,Posh Residential,Clifton|Clifton Block
+Karachi,Gulshan-e-Iqbal,Gulshan Tehsil,Residential,Gulshan e Iqbal|Gulshan-e-Iqbal|Gulshan Iqbal|گلشن اقبال
+Karachi,North Nazimabad,Nazimabad Tehsil,Residential,North Nazimabad|Nazimabad North|نارتھ ناظم آباد
+Karachi,PECHS,Jamshed Zone,Residential,PECHS|Pakistan Employees Cooperative Housing Society
+Karachi,Saddar,Saddar Tehsil,Commercial,Saddar|صدر
+Karachi,Bahria Town,Bahria Town Zone,Residential,Bahria Town|بحریہ ٹاؤن
+Karachi,Malir,Malir Tehsil,Suburban,Malir|ملیر
+Karachi,Gulistan-e-Jauhar,Gulshan Tehsil,Residential,Gulistan e Iqbal|Gulistan-e-Jauhar
+Islamabad,F-6,Zone 1,Residential,F-6|F6|Sector F 6|سیکٹر ایف 6
+Islamabad,F-7,Zone 1,Residential,F-7|F7|Sector F 7
+Islamabad,F-8,Zone 1,Residential,F-8|F8|Sector F 8
+Islamabad,G-6,Zone 1,Residential,G-6|G6|Sector G 6
+Islamabad,G-7,Zone 1,Residential,G-7|G7|Sector G 7
+Islamabad,G-8,Zone 1,Residential,G-8|G8|Sector G 8
+Islamabad,I-8,Zone 1,Residential,I-8|I8|Sector I 8
+Islamabad,DHA,Zone 2 & 5,Residential,DHA|D.H.A.|Defence|Defense Housing Authority
+Islamabad,Bahria Town,Zone 2 & 5,Residential,Bahria Town|بحریہ ٹاؤن
+Rawalpindi,Saddar,Rawalpindi Cantt,Commercial,Saddar|صدر
+Rawalpindi,Bahria Town,Rawalpindi Zone,Residential,Bahria Town
+Rawalpindi,Satellite Town,Rawalpindi City,Residential,Satellite Town
+Rawalpindi,Chaklala,Rawalpindi Cantt,Residential,Chaklala
+Rawalpindi,DHA,Rawalpindi Zone,Residential,DHA|D.H.A.|Defence|Defense Housing Authority

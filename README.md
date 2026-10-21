@@ -4,7 +4,7 @@ In Pakistan, a lot of online orders are paid for in cash when the parcel arrives
 
 CODShield is our attempt at a back office that catches those orders early. A customer chats with the shop in English, Urdu or Roman Urdu, and an AI assistant takes the order. The system then scores how risky the order looks and explains why. Shaky orders get a confirmation call, and when the AI gets stuck, the chat goes to a human on the staff inbox.
 
-It is a prototype, built for the Nebius x NVIDIA Global AI Hackathon. We've tried to be straight about what is real and what is pretend, so please read the table below before you run anything.
+This README describes the current implementation and calls out simulated or unverified parts.
 
 ## What works and what doesn't
 
@@ -23,7 +23,7 @@ It is a prototype, built for the Nebius x NVIDIA Global AI Hackathon. We've trie
 
 ## How it fits together
 
-Nothing in the system calls anything else directly. Every step leaves a small record (an "event") in a Postgres table, and a background worker hands each event to the function that cares about it.
+The workflow is event-driven: handlers save events in PostgreSQL, and a background worker passes each event to its registered handler. Handlers also use shared helpers for tasks such as address cleanup, risk scoring, and provider calls.
 
 ```
 customer (browser chat)
@@ -42,7 +42,7 @@ One order goes like this:
 1. The customer sends a message. The gateway saves it and writes a `message.received` event.
 2. The worker passes it to the sales agent, which asks the model what to say. When the customer clearly agrees, an order is created.
 3. The address is cleaned and the order gets a risk score with reasons.
-4. Low-risk orders are dispatched. The rest get a confirmation call.
+4. Low-risk orders are dispatched. Medium- and high-risk orders request confirmation.
 5. The call result moves the order to confirmed, cancelled, or "needs a human".
 6. When a delivery result arrives, the order is closed. A phone number with repeated bad outcomes gets flagged, so its next order scores higher.
 
@@ -50,13 +50,11 @@ Order status can only move along allowed steps, which are defined in `events.py`
 
 ## Models and infrastructure
 
-Right now the sales agent calls Gemini through `llm.py`.
-
-<!-- TODO before submitting to the hackathon: the rules require running on Nebius Token Factory or AI Cloud with at least one NVIDIA open-source model. Replace this section with what actually runs: which Nemotron models, where, and which Nebius services are used. -->
+The sales agent uses Gemini through `llm.py`. Gemini is the model provider for the current implementation and is the planned provider going forward. Configure it with `GEMINI_API_KEY`; `GEMINI_MODEL` can select a model, and defaults are set in `llm.py`.
 
 ## Getting started
 
-You'll need Python 3.10+, a PostgreSQL 15+ database with the `pgcrypto` and `vector` extensions (we use Supabase), and an API key for the model provider.
+You'll need Python 3.10+, a PostgreSQL 15+ database, and a Gemini API key. `db/schema.sql` is a best-effort reconstruction from the application queries and migrations; it is not the recovered original schema. Review its column types and constraints against your intended database before applying it. Then apply the incremental migrations with the documented runner.
 
 **1. Install**
 
@@ -75,7 +73,7 @@ Fill in `.env`. Keep it private and never commit it. The main settings are:
 | Setting | What it's for |
 |---|---|
 | `DATABASE_URL` | Your Postgres connection string |
-| `GEMINI_API_KEY` | The model key (will change when we move to Nebius) |
+| `GEMINI_API_KEY` | Gemini API key; Gemini is the current and planned model provider |
 | `STAFF_ACCESS_TOKEN` | The password for the staff page |
 | `PHONE_ENC_KEY` | Encrypts customer phone numbers. Create one with the command below and back it up, because a lost key means saved numbers can't be read. |
 | `HASH_SALT` | Secret used when hashing phones and addresses. Keep it stable. |
@@ -90,7 +88,7 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 
 **3. Set up the database**
 
-Run `db/schema.sql` once on an empty database (paste it into the Supabase SQL editor). It creates the core tables. Then apply the incremental changes:
+Review `db/schema.sql` before using it to initialize an empty database. It was reconstructed from current code because the original base schema could not be recovered. After applying the reviewed base schema, apply incremental changes with:
 
 ```powershell
 python migrate.py
@@ -139,7 +137,7 @@ python smoke_test.py          # runs two full orders through the real database (
 python -m unittest
 ```
 
-All tests run offline and mock the database-facing services, the model and Twilio. That means they say nothing about a live Supabase connection or live Twilio credentials. `scripts/eval_sales.py` is a separate, optional check that talks to the real model with scripted customer conversations, so it costs API credits.
+The test suite is intended to run offline and mocks database-facing services, the model, and Twilio. It does not verify a live Supabase connection or live Twilio credentials. `scripts/eval_sales.py` is an optional check that sends scripted conversations to Gemini and may use API credits. Most tests use `unittest`; `tests/test_sales_agent.py` contains pytest-style function tests, but pytest is not listed in `requirements.txt`, and `python -m unittest` does not run those function tests.
 
 ## Security notes
 
@@ -154,7 +152,7 @@ All tests run offline and mock the database-facing services, the model and Twili
 - Urdu voice on Twilio calls is unconfirmed. We haven't verified which voice and speech settings work for Urdu on a real account.
 - We haven't measured real return rates ourselves yet, so we don't quote any numbers here.
 
-## Things we'd like to build next
+## Possible future work
 
 WhatsApp, real courier tracking, a fraud graph that links phones and addresses across sellers, Urdu voice notes for ordering, and a replay mode that shows how many returns the system would have caught on past orders.
 
@@ -163,7 +161,8 @@ WhatsApp, real courier tracking, a fraud graph that links phones and addresses a
 | File | What it does |
 |---|---|
 | `worker.py` | Reads events and runs the right handlers |
-| `handlers.py` | Sales agent, orchestrator, address cleaner, risk engine, calls, dispatch, learning |
+| `handlers.py` | `sales_agent()` plus the orchestrator, address cleaner, risk engine, calls, dispatch, and learning handlers |
+| `db/schema.sql` | Reconstructed core schema; review before applying |
 | `events.py` | Event types and allowed order status changes |
 | `web_gateway.py`, `web/` | Web server, chat page, staff page, call page |
 | `gateway.py`, `phone_crypto.py` | Receiving messages, phone hashing and encryption |
@@ -177,4 +176,4 @@ WhatsApp, real courier tracking, a fraud graph that links phones and addresses a
 
 MIT. See `LICENSE`.
 
-Built by [team names].
+Built by the CODShield project team.
